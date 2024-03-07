@@ -5,3 +5,9 @@ This is work in progress.Things completed so far :-
 
 Next Step:-
     As this is a pdf document it doesn't have any PAD tokens.So in next session will add PAD tokems so that the tokenizer can tokeninize the pdf text
+
+7th Mar, 2024
+
+    As per this commit the encoder is working as well as the training loop.I understand the encoder part well, thanks to the video tutorial by Andre on tokenizer.
+    In next session will try to understand the training loop.
+
