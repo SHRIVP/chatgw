@@ -17,5 +17,7 @@ Next Step:-
 
 21st Mar, 2023
 
-    The code is done and something is getting fine tuned.I havd a MAC and the finetraining for a 16mb pdf is running for last 24 hrs.The code is very suboptimal and I am sure there would be ways to do it faster.But still to bring this to a raesonale level I need more compute.I don't want to use any cloud instance so next stpes would be to buy some gpus to check the effectiveness of the training.
+    The code is done and something is getting fine tuned.I havd a MAC and the finetraining for a 16mb pdf is running for last 24 hrs.
+    The code is very suboptimal and I am sure there would be ways to do it faster.But still to bring this to a raesonale level I need more compute.
+    I don't want to use any cloud instance so next stpes would be to buy some gpus to check the effectiveness of the training.
 
