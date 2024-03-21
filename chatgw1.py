@@ -28,7 +28,7 @@ output_dir = "/Users/pushkar/projects/chatbot/logs"
 os.makedirs(output_dir, exist_ok=True)
 
 # Maximum number of tokens allowed per batch
-max_seq_length = 512
+max_seq_length = 4
 
 # Batch size
 batch_size = 8
@@ -42,12 +42,15 @@ model_name = 'gpt2'
 
 # Initialize the tokenizer
 tokenizer = GPT2TokenizerFast.from_pretrained(model_name)
+tokenizer.pad_token = tokenizer.eos_token
 
 # Initialize the model
 model = GPT2LMHeadModel.from_pretrained(model_name)
 
 # Move the model to GPU if available
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+# device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+print(f"Using device: {device}")
 model.to(device)
 
 # Function to clean and format the text data
@@ -81,28 +84,106 @@ def extract_text_from_pdf(file_path):
 
     # Return the cleaned and formatted text
     return text
+def chunk_text(text, max_length):
+    """
+    Splits the text into chunks of `max_length`.
+    
+    Args:
+    - text (str): The text to be chunked.
+    - max_length (int): The maximum length of each chunk.
+    
+    Returns:
+    - List[str]: A list of text chunks, each with a length up to `max_length`.
+    """
+    # Split the text into words to avoid cutting in the middle of words
+    words = text.split()
+    chunks = []
+    current_chunk = []
+    
+    for word in words:
+        # Check if adding the next word would exceed the max_length
+        if len(' '.join(current_chunk + [word])) > max_length:
+            # If so, add the current chunk to the chunks list and start a new one
+            chunks.append(' '.join(current_chunk))
+            current_chunk = [word]
+        else:
+            # Otherwise, add the word to the current chunk
+            current_chunk.append(word)
+    
+    # Don't forget to add the last chunk if it's not empty
+    if current_chunk:
+        chunks.append(' '.join(current_chunk))
+    
+    return chunks
+
+# def tokenize_data(text_data):
+#     # Tokenize the text data using the ChatGPT tokenizer
+#     # text_data = "Tokenize the text data using the ChatGPT tokenizer"
+#     tokenizer.pad_token = 'PAD'
+#     text_chunks = chunk_text(text_data, max_seq_length)
+#     encoded_chunks = [tokenizer.encode(chunk, truncation=True, max_length=max_seq_length, return_tensors="pt") for chunk in text_chunks]
+#     inputs = tokenizer(text_data, truncation=True, padding="max_length", max_length=max_seq_length, return_tensors="pt")
+#     # Convert the inputs dictionary to a list of tuples
+#     inputs = list(inputs.items())
+
+#     # Add special attention mask tokens
+#     # attention_masks = [float(i != tokenizer.pad_token_id) for x in inputs[1] for i in x[0]]
+
+#     # print(attention_masks)
+
+#     # Create a DataFrame from the inputs and attention masks
+#     df = pd.DataFrame({k: v.numpy().flatten() for k, v in zip(['input_ids', 'attention_mask'], [x[1] for x in inputs])})
+#     print(df)
+#     # df['attention_mask'] = attention_masks[0:512]
+#     # Create labels by shifting the input_ids one position to the right
+#     labels = df['input_ids'].copy()
+#     labels = labels.shift(1).fillna(tokenizer.pad_token_id).astype(int)
+#     tokenizer.save_pretrained(output_dir)
+
+
+#     # Return the DataFrame with the labels
+#     return df, labels
+
+def shift_and_insert(row):
+    # Shift elements one position to the right and insert [123] at the beginning
+    shifted_list = [tokenizer.pad_token_id]
+    new_list = row['input_ids'][:-1]
+    shifted_list.extend(new_list)
+    return shifted_list
+
 
 def tokenize_data(text_data):
-    # Tokenize the text data using the ChatGPT tokenizer
-    tokenizer.pad_token = tokenizer.eos_token
-    inputs = tokenizer(text_data, truncation=True, padding="max_length", max_length=max_seq_length, return_tensors="pt")
+    # Break the text into chunks of up to max_seq_length, ignoring the last chunk if it's too small
+    # text_data = "hello world is"
+    encoded_chunks = []
+    for i in range(0, len(text_data), max_seq_length):
+        # Encode each chunk
+        chunk = text_data[i:i+max_seq_length]
+        encoded_chunk = tokenizer(chunk, truncation=True, padding="max_length", max_length=max_seq_length, return_tensors="pt")
+        encoded_chunks.append(encoded_chunk)
 
-    # Convert the inputs dictionary to a list of tuples
-    inputs = list(inputs.items())
+    # Combine the encoded chunks
+    input_ids = []
+    attention_masks = []
+    for chunk in encoded_chunks:
+        input_ids.extend(chunk['input_ids'])
+        attention_masks.extend(chunk['attention_mask'])
 
-    # Add special attention mask tokens
-    attention_masks = [float(i != tokenizer.pad_token_id) for x in inputs[1] for i in x[0]]
+    # Convert to DataFrame
+    df = pd.DataFrame({
+        'input_ids': [ids.numpy().flatten() for ids in input_ids],
+        'attention_mask': [masks.numpy().flatten() for masks in attention_masks]
+    })
 
-    # Create a DataFrame from the inputs and attention masks
-    df = pd.DataFrame({k: v.numpy().flatten() for k, v in zip(['input_ids', 'token_type_ids', 'attention_mask'], [x[1] for x in inputs])})
-    df['attention_mask'] = attention_masks[0:512]
+    print(df)
+
     # Create labels by shifting the input_ids one position to the right
-    labels = df['input_ids'].copy()
-    labels = labels.shift(1).fillna(tokenizer.pad_token_id).astype(int)
+    # df['labels'] = df['input_ids'].apply(lambda x: [1] + (x[:-1]))
+    df['labels'] = df.apply(lambda row: shift_and_insert(row), axis=1)
 
+    print(df)
 
-    # Return the DataFrame with the labels
-    return df, labels
+    return df
 
 
 # Function to fine-tune the ChatGPT model
@@ -159,6 +240,7 @@ def fine_tune_model(train_df, val_df, train_labels, val_labels):
 
         # Validate the model
         validate_model(val_df, val_labels)
+    model.save_pretrained(output_dir)
 
 
 # Function to validate the model
@@ -206,12 +288,17 @@ if __name__ == "__main__":
         text_data.append(extract_text_from_pdf(file_path))
 
     # Concatenate the text data from all PDF files
+    print("Length of text data")
+    print(len(text_data[0]))
     full_text = " ".join(text_data)
+    print(full_text[:1000])
 
     # Tokenize the text data
-    data, labels = tokenize_data(full_text)
+    data = tokenize_data(full_text)
+    print(data.shape)
+    print(data.head())
     # Split the data into training and validation sets
-    train_df, val_df, train_labels, val_labels = train_test_split(data, labels, test_size=0.1, random_state=42)
+    train_df, val_df, train_labels, val_labels = train_test_split(data, data['labels'], test_size=0.1, random_state=42)
 
 
     # Fine-tune the model on the training data
