@@ -28,7 +28,7 @@ output_dir = "/Users/pushkar/projects/chatbot/logs"
 os.makedirs(output_dir, exist_ok=True)
 
 # Maximum number of tokens allowed per batch
-max_seq_length = 4
+max_seq_length = 512
 
 # Batch size
 batch_size = 8
@@ -116,33 +116,6 @@ def chunk_text(text, max_length):
     
     return chunks
 
-# def tokenize_data(text_data):
-#     # Tokenize the text data using the ChatGPT tokenizer
-#     # text_data = "Tokenize the text data using the ChatGPT tokenizer"
-#     tokenizer.pad_token = 'PAD'
-#     text_chunks = chunk_text(text_data, max_seq_length)
-#     encoded_chunks = [tokenizer.encode(chunk, truncation=True, max_length=max_seq_length, return_tensors="pt") for chunk in text_chunks]
-#     inputs = tokenizer(text_data, truncation=True, padding="max_length", max_length=max_seq_length, return_tensors="pt")
-#     # Convert the inputs dictionary to a list of tuples
-#     inputs = list(inputs.items())
-
-#     # Add special attention mask tokens
-#     # attention_masks = [float(i != tokenizer.pad_token_id) for x in inputs[1] for i in x[0]]
-
-#     # print(attention_masks)
-
-#     # Create a DataFrame from the inputs and attention masks
-#     df = pd.DataFrame({k: v.numpy().flatten() for k, v in zip(['input_ids', 'attention_mask'], [x[1] for x in inputs])})
-#     print(df)
-#     # df['attention_mask'] = attention_masks[0:512]
-#     # Create labels by shifting the input_ids one position to the right
-#     labels = df['input_ids'].copy()
-#     labels = labels.shift(1).fillna(tokenizer.pad_token_id).astype(int)
-#     tokenizer.save_pretrained(output_dir)
-
-
-#     # Return the DataFrame with the labels
-#     return df, labels
 
 def shift_and_insert(row):
     # Shift elements one position to the right and insert [123] at the beginning
@@ -175,13 +148,10 @@ def tokenize_data(text_data):
         'attention_mask': [masks.numpy().flatten() for masks in attention_masks]
     })
 
-    print(df)
 
     # Create labels by shifting the input_ids one position to the right
     # df['labels'] = df['input_ids'].apply(lambda x: [1] + (x[:-1]))
     df['labels'] = df.apply(lambda row: shift_and_insert(row), axis=1)
-
-    print(df)
 
     return df
 
@@ -288,15 +258,13 @@ if __name__ == "__main__":
         text_data.append(extract_text_from_pdf(file_path))
 
     # Concatenate the text data from all PDF files
-    print("Length of text data")
-    print(len(text_data[0]))
+    # print(len(text_data[0]))
     full_text = " ".join(text_data)
-    print(full_text[:1000])
 
     # Tokenize the text data
     data = tokenize_data(full_text)
-    print(data.shape)
-    print(data.head())
+    # print(data.shape)
+    # print(data.head())
     # Split the data into training and validation sets
     train_df, val_df, train_labels, val_labels = train_test_split(data, data['labels'], test_size=0.1, random_state=42)
 

@@ -21,3 +21,7 @@ Next Step:-
     The code is very suboptimal and I am sure there would be ways to do it faster.But still to bring this to a raesonale level I need more compute.
     I don't want to use any cloud instance so next stpes would be to buy some gpus to check the effectiveness of the training.
 
+
+24t Mar, 2023
+
+    The trained code took a lot of time but when I generate the text using the saved model it just repeats the text many times.Corrected some code in chat.py as it was throwing an error when generating the text.Now stated the tarining again with 30 mb pdf on MAC M2 16 GB on Mar 24 @ 4 PM
