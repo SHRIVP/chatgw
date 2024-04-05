@@ -25,3 +25,8 @@ Next Step:-
 24t Mar, 2023
 
     The trained code took a lot of time but when I generate the text using the saved model it just repeats the text many times.Corrected some code in chat.py as it was throwing an error when generating the text.Now stated the tarining again with 30 mb pdf on MAC M2 16 GB on Mar 24 @ 4 PM
+
+
+April 4th, 2024
+
+    Moved the text extraction from pdf to a separate module.
